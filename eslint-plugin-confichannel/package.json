@@ -1,0 +1,14 @@
+{
+  "name": "eslint-plugin-confichannel",
+  "version": "1.0.0",
+  "description": "eslint rules for ConfiChannel",
+  "main": "index.js",
+  "scripts": {
+    "test": "./node_modules/.bin/mocha tests/**/*.js"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "eslint": "^8.12.0",
+    "mocha": "^9.2.2"
+  }
+}

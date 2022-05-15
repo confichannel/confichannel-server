@@ -1,0 +1,3 @@
+export const MAX_CHANNELS_NO_SUBSCRIPTION = 20;
+export const MAX_CHANNELS_WITH_SUBSCRIPTION = 1000;
+export const ERROR_MESSAGE_CHANNEL_ALREADY_EXISTS = 'Channel already exists';
