@@ -1,4 +1,3 @@
-import { ok } from 'assert';
 import { validate as validateUuid } from 'uuid';
 import {
 	BadRequestException,
@@ -196,7 +195,12 @@ export class ChannelsController {
 			passcode,
 			'channel:pullError'
 		);
-		await this._validatePermissions(deviceId, channelId, [ReadPullPermission]);
+		await this._validatePermissions(
+			deviceId,
+			channelId,
+			[ReadPullPermission],
+			'channel:pullError'
+		);
 		const result = await this.channelsService.pull(channelId);
 		this.metricsService.recordEvent('channel:pulled');
 		return result;
@@ -295,7 +299,12 @@ export class ChannelsController {
 
 		// Check that the device making the request has permission to push
 		// to the channel.
-		await this._validatePermissions(deviceId, channelId, [WritePushPermission]);
+		await this._validatePermissions(
+			deviceId,
+			channelId,
+			[WritePushPermission],
+			'channel:pushError'
+		);
 
 		const [channelType, subscription] = await Promise.all([
 			this.channelsService.getChannelType(channelId),
@@ -377,9 +386,12 @@ export class ChannelsController {
 			passcode,
 			'channel:popTempPublicKeysError'
 		);
-		await this._validatePermissions(deviceId, channelId, [
-			PopPublicKeyPermission,
-		]);
+		await this._validatePermissions(
+			deviceId,
+			channelId,
+			[PopPublicKeyPermission],
+			'channel:popTempPublicKeysError'
+		);
 		const publicKeys = await this.channelsService.popChannelPublicKeys(
 			channelId
 		);
@@ -413,9 +425,12 @@ export class ChannelsController {
 
 		// Check that the device has permission to read the list of channel
 		// invites.
-		await this._validatePermissions(deviceId, channelId, [
-			ReadInviteListPermission,
-		]);
+		await this._validatePermissions(
+			deviceId,
+			channelId,
+			[ReadInviteListPermission],
+			'channel:getOutstandingInviteError'
+		);
 
 		// Return flag indiciate if the channel has an outstanding invite.
 		const hasOutstandingInvite =
@@ -450,9 +465,12 @@ export class ChannelsController {
 		);
 
 		// Check that the device has access to create invites for the channel.
-		await this._validatePermissions(deviceId, channelId, [
-			WriteInvitePermission,
-		]);
+		await this._validatePermissions(
+			deviceId,
+			channelId,
+			[WriteInvitePermission],
+			'channel:invite:creationError'
+		);
 
 		// Validate that invite includes the correct data.
 		const { encryptedEncryptKey } = inviteBody;
@@ -560,9 +578,12 @@ export class ChannelsController {
 		);
 
 		// Check that the device has permission to write invites
-		await this._validatePermissions(deviceId, channelId, [
-			WriteInvitePermission,
-		]);
+		await this._validatePermissions(
+			deviceId,
+			channelId,
+			[WriteInvitePermission],
+			'channel:invitesListError'
+		);
 
 		// Get and return the invites for the channel.
 		const invites = await this.channelsService.getInvites(channelId);
@@ -592,7 +613,7 @@ export class ChannelsController {
 		await this._validateChannelPasscode(
 			channelId,
 			passcode,
-			'channel:invitesListError'
+			'channel:deleteInviteError'
 		);
 
 		// Check that the invite exists.
@@ -614,9 +635,12 @@ export class ChannelsController {
 		}
 
 		// Check that the device has permisison to delete invites for this channel
-		await this._validatePermissions(deviceId, realChannelId, [
-			WriteDeleteInvitePermission,
-		]);
+		await this._validatePermissions(
+			deviceId,
+			realChannelId,
+			[WriteDeleteInvitePermission],
+			'channel:deleteInviteError'
+		);
 
 		// Delete the channel.
 		await this.channelsService.deleteChannelInvite(inviteId);
@@ -943,20 +967,25 @@ export class ChannelsController {
 	private async _validatePermissions(
 		deviceId: string,
 		channelId: string,
-		expectedPermissions: string[]
+		expectedPermissions: string[],
+		metricErrorEvent: string
 	) {
 		const deviceToChannel = await this.devicesService.getDeviceToChannelEdge({
 			deviceId,
 			channelId,
 		});
 		if (!deviceToChannel) {
+			this.metricsService.recordEvent(metricErrorEvent, {
+				errorType: 'deviceToChannel not found',
+			});
 			throw new ForbiddenException();
 		}
 		const actualPermissions = new Set(deviceToChannel.permissions);
 		for (const permission of expectedPermissions) {
-			try {
-				ok(actualPermissions.has(permission));
-			} catch (err) {
+			if (!actualPermissions.has(permission)) {
+				this.metricsService.recordEvent(metricErrorEvent, {
+					errorType: 'permission not found',
+				});
 				throw new ForbiddenException();
 			}
 		}
