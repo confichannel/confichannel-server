@@ -12,6 +12,13 @@ if (typeof paypalWebhookPath !== 'string' || !paypalWebhookPath.length) {
 	throw new Error('Invalid PayPal webhook path');
 }
 
+const knownPlanIds = new Set(
+	(process.env.PAYPAL_PLAN_IDS || '')
+		.split(',')
+		.map((i) => i.trim())
+		.filter((i) => !!i)
+);
+
 @Controller(paypalWebhookPath)
 export class PaypalController {
 	private readonly logger = new Logger(PaypalController.name);
@@ -62,7 +69,8 @@ export class PaypalController {
 					subscriptionResource.billing_info.next_billing_time.length < 30 &&
 					!isNaN(
 						Date.parse(subscriptionResource.billing_info.next_billing_time)
-					)
+					) &&
+					knownPlanIds.has(subscriptionResource.plan_id)
 				) {
 					const {
 						custom_id: confiSubscriptionId,
@@ -121,7 +129,8 @@ export class PaypalController {
 					typeof subscriptionResource.plan_id === 'string' &&
 					subscriptionResource.plan_id.length <= 256 &&
 					typeof subscriptionResource.status === 'string' &&
-					subscriptionResource.status.length <= 256
+					subscriptionResource.status.length <= 256 &&
+					knownPlanIds.has(subscriptionResource.plan_id)
 				) {
 					const { status } = subscriptionResource;
 					const paypalSubscriptionResourceId = keyifyStringForArangoDb(
